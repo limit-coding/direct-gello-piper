@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gello-piper-direct"
+version = "0.1.0"
+description = "Local, serverless GELLO and AgileX Piper X control for macOS/Linux"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "PyYAML>=6.0",
+  "pyserial>=3.5",
+]
+
+[project.optional-dependencies]
+piper = ["python-can>=4.2", "gs-usb>=0.3.1"]
+test = ["pytest>=7.4"]
+
+[project.scripts]
+gello-piper = "gello_piper_direct.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

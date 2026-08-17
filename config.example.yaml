@@ -1,0 +1,43 @@
+# GELLO 在你当前工作区的实测标定值。换主臂后必须重新标定。
+gello:
+  port: auto
+  # 多个 USB 串口时，优先填设备序列号；也可直接填 /dev/cu.usbserial-xxxx。
+  serial_number: null
+  baudrate: 57600
+  joint_ids: [1, 6, 4, 5, 3, 2]
+  joint_offsets: [1.37138, 4.98544, 3.0833, 1.13208, 3.27965, 4.84891]
+  joint_signs: [1, -1, -1, -1, 1, 1]
+  gripper_config: [7, 286.436, 234.404]
+
+piper:
+  # 当前已识别到 candleLight GS-USB。只有一个 GS-USB 时 auto 会选 index 0。
+  channel: auto
+  serial_number: null
+  interface: gs_usb
+  bitrate: 1000000
+  feedback_timeout_s: 2.0
+  enable_timeout_s: 3.0
+  speed_percent: 20
+  gripper_max_m: 0.07
+  gripper_force: 1000
+
+teleop:
+  hz: 30
+  joint_directions: [1, 1, 1, 1, 1, 1]
+  joint_scales: [1, 1, 1, 1, 1, 1]
+  # Piper SDK 原始坐标系限位；J2/J3 在 0 附近留 5° 编码器标定余量。
+  joint_limits_rad:
+    - [-2.6179, 2.6179]
+    - [0.0, 3.14]
+    - [-2.967, 0.0]
+    - [-1.745, 1.745]
+    - [-1.22, 1.22]
+    - [-2.09439, 2.09439]
+  max_command_step_rad: 0.025
+  max_gripper_step: 0.04
+  max_leader_jump_rad: 0.35
+  watchdog_timeout_s: 0.35
+  gripper_gamma: 1.0
+  invert_gripper: false
+  # emergency: Ctrl-C 后发电子急停；hold: 保持当前位置但电机继续使能。
+  stop_mode: emergency
