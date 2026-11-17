@@ -11,6 +11,15 @@ Piper USB-CAN ────┘
 联动时采用“当前姿态锚定”：启动瞬间的 GELLO 姿态对应启动瞬间的 Piper
 姿态。库不会自动回零，也不会突然移动到某个保存姿态。
 
+## 项目与配置入口
+
+- 硬件选型、BOM、打印件与装配：[gello-yam](https://github.com/limit-coding/gello-yam)。
+- 单臂示例配置：[config.example.yaml](./config.example.yaml)。
+- 双臂硬件配置与既有标定：[dual_config.yaml](./dual_config.yaml)。
+- ID 映射、标定状态、运行入口与安装依赖：[CONFIGURATION.md](./CONFIGURATION.md)。
+
+配置中的零偏、行程与 USB 序列号属于这套实机；更换设备后需重新识别和标定。
+
 ## 先确认 USB-CAN 类型
 
 GELLO 通常通过 FTDI/U2D2 暴露为 `/dev/cu.usbserial-*`，macOS 可以直接用。
@@ -26,7 +35,7 @@ Darwin 上跳过这次多余 reset，并在关闭时显式释放 libusb 句柄�
 USB-CAN，必须确认 `python-can` 在 macOS 上有对应后端；仅仅能在 USB 树中看到
 设备，并不代表能收发 CAN。
 
-当前已确认 GELLO FTDI 串口 `/dev/cu.usbserial-A50285BI` 通信正常，也确认了
+当前已确认 GELLO FTDI 串口 `/dev/cu.usbserial-YOUR_GELLO` 通信正常，也确认了
 candleLight 的 USB 枚举。仍应先运行下面的 `devices` 和只读 `doctor`；不要跳过
 检查直接使能。
 
@@ -35,12 +44,16 @@ candleLight 的 USB 枚举。仍应先运行下面的 `devices` 和只读 `docto
 在 Finder 中双击 `install_mac.command`，或在终端运行：
 
 ```bash
-cd "/Users/limit/3D打印/direct_gello_piper"
+git clone https://github.com/limit-coding/direct-gello-piper.git
+cd direct-gello-piper
 ./install_mac.command
 ```
 
-安装脚本会创建独立 `.venv`，并安装工作区里已有的 GELLO、DynamixelSDK 和
-Piper SDK 0.6.2，不依赖原服务器工程。
+安装脚本会创建独立 `.venv`，并安装本项目及已有的 GELLO、DynamixelSDK 和
+兼容的 Piper SDK 源码。这三个硬件依赖未随本仓库打包；克隆本仓库后还需要准备
+它们。可通过 `GELLO_SOFTWARE_DIR`、`DYNAMIXEL_SDK_DIR`、`PIPER_SDK_DIR`
+指定源码目录，详见 [安装依赖](./CONFIGURATION.md#安装依赖)。脚本会先检查目录，
+缺失时退出并提示路径。
 
 如果 macOS 首次阻止 `.command` 文件，可在终端先执行：
 
@@ -71,7 +84,7 @@ chmod +x install_mac.command run_teleop.command
 
 ```yaml
 gello:
-  port: /dev/cu.usbserial-A50285BI
+  port: /dev/cu.usbserial-YOUR_GELLO
 
 piper:
   channel: 0
@@ -98,7 +111,7 @@ piper:
 3. 每轴的安全负端和正端；
 4. 夹爪完全打开和闭合位置。
 
-全程会强制七个舅机卸力，不会下发位置。只有最后输入 `SAVE` 才会写入
+全程会强制七个舵机卸力，不会下发位置。只有最后输入 `SAVE` 才会写入
 `config.yaml`，并先生成 `config.yaml.before-gello-calibration` 备份。
 
 如果 ID、方向和夹爪已经调好，只需要重新记录六轴可用行程，运行：
@@ -140,7 +153,8 @@ piper:
 .venv/bin/gello-piper teleop --config config.yaml --yes
 ```
 
-程序先只读显示两边姿态，随后直接使能 Piper；不再要求输入 `ENABLE`。启动后
+上述命令带 `--yes`，先显示两边姿态再使能 Piper；省略 `--yes` 时会要求输入
+`ENABLE`。双击入口同样带 `--yes`。启动后
 移动 GELLO 即可控制 Piper。按 `Ctrl-C` 会按 `teleop.stop_mode` 停止，默认
 发送 Piper 电子急停。
 
@@ -237,10 +251,8 @@ CAN/MOVE_J 并使能；此恢复阶段不发送位置目标。
 `range_mapping`：保持启动姿态不跳变，并把 GELLO 的安全端点映射到 Piper 配置的
 完整合法关节范围。Piper 固件硬限位不会被扩大。
 
-`dual_config.yaml` 当前绑定关系为：Piper B 使用 GS-USB 序列号
-`0029004A5547571120343930`，Piper C 使用
-`003D003D4148571320343133`。程序按完整序列号绑定，不依赖容易随 USB 插拔变化的
-裸 index。
+`dual_config.yaml` 通过每台 Piper 的 `piper.serial_number` 绑定 GS-USB。
+更换设备时先枚举并填写自己的完整序列号，不依赖容易随 USB 插拔变化的裸 index。
 
 ## Python API
 
@@ -322,7 +334,8 @@ finally:
 - GELLO 单周期异常跳变检测；
 - 控制循环看门狗和 Piper 反馈时间戳看门狗；
 - 串口选择有歧义时拒绝猜测；
-- Piper 使能前需要显式 API 调用，CLI 还需要 `ENABLE` 文本确认；
+- Piper 使能需要显式 API 调用；单臂 `teleop` 默认要求 `ENABLE`，`--yes`、
+  `arm-teleop` 与 `dual-teleop` 会跳过该确认；
 - 异常、`Ctrl-C` 和控制循环崩溃会进入配置的停止策略。
 
 `stop_mode: emergency` 安全性更强但会进入急停状态；`stop_mode: hold` 只保持当前位置，
@@ -338,3 +351,4 @@ finally:
 
 单元测试覆盖配置校验、USB 选择、相对映射、限速、关节限位、GELLO 跳变和控制
 看门狗。真实 USB/CAN 通信必须在设备接好后用只读 `doctor` 验证。
+
